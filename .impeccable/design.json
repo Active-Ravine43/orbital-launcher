@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-21T00:37:00Z",
+  "title": "Design System: Orbital Launcher",
+  "extensions": {
+    "colorMeta": {
+      "void-bg": {
+        "role": "neutral",
+        "displayName": "Void Background",
+        "canonical": "#0A0A0A",
+        "tonalRamp": [
+          "#050505","#0A0A0A","#0F0F12","#1A1A1E",
+          "#2A2A30","#3D3D44","#52525A","#646469"
+        ]
+      },
+      "phosphor-white": {
+        "role": "neutral",
+        "displayName": "Phosphor White",
+        "canonical": "#EAEAEA",
+        "tonalRamp": [
+          "#646469","#85858A","#A0A0A5","#B8B8BC",
+          "#CCCCCF","#DADADE"," "#E5E5E8","#EAEAEA"
+        ]
+      },
+      "aviation-red": {
+        "role": "primary",
+        "displayName": "Aviation Red",
+        "canonical": "#E61919",
+        "tonalRamp": [
+          "#2B0404","#4A0808","#6E0D0D","#9B1313",
+          "#C21818","#E61919","#EE4B4B","#F58080"
+        ]
+      },
+      "muted-telemetry": {
+        "role": "neutral",
+        "displayName": "Muted Telemetry",
+        "canonical": "#646469",
+        "tonalRamp": [
+          "#1A1A1E","#2A2A30","#3D3D44","#52525A",
+          "#646469","#85858A","#A0A0A5","#B8B8BC"
+        ]
+      },
+      "elevated-panel": {
+        "role": "neutral",
+        "displayName": "Elevated Panel",
+        "canonical": "#0F0F12",
+        "tonalRamp": [
+          "#050505","#0A0A0A","#0F0F12","#1A1A1E",
+          "#2A2A30","#3D3D44","#52525A","#646469"
+        ]
+      },
+      "terminal-green": {
+        "role": "secondary",
+        "displayName": "Terminal Green",
+        "canonical": "#4AF626",
+        "tonalRamp": [
+          "#0A2E04","#124D08","#1B6E0D","#279B13",
+          "#35C218","#4AF626","#73F558","#9CFA80"
+        ]
+      },
+      "deep-void": {
+        "role": "neutral",
+        "displayName": "Deep Void",
+        "canonical": "#050505",
+        "tonalRamp": [
+          "#000000","#050505","#0A0A0A","#0F0F12",
+          "#1A1A1E","#2A2A30","#3D3D44","#52525A"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "ui-mono": {
+        "displayName": "UI Monospace",
+        "purpose": "All interface text — search bar, hover labels, fallback icon letters."
+      },
+      "omega-display": {
+        "displayName": "Omega Display",
+        "purpose": "Single-character omega glyph. The only Serif element in the interface."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "drift-rotation",
+        "value": "3.0 deg/s continuous Y-axis rotation",
+        "purpose": "Ambient orbital drift. Paused during drag. Disabled when launcher hidden. Respects prefers-reduced-motion."
+      },
+      {
+        "name": "fps-adaptive",
+        "value": "60fps (visible) → 1fps (hidden)",
+        "purpose": "Aggressive CPU savings when launcher not shown."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Search Bar (Placeholder)",
+      "kind": "input",
+      "refersTo": "search-bar",
+      "description": "Full-width telemetry input panel with mechanical left-edge strikethrough.",
+      "html": "<div class=\"ds-search-bar\"><span class=\"ds-search-label\">[ SEARCH ]</span></div>",
+      "css": ".ds-search-bar { background: rgba(15,15,18,0.85); width: 420px; height: 40px; border: 1px solid rgba(230,25,25,0.40); border-radius: 0; display: flex; align-items: center; padding: 0 16px; position: relative; font-family: monospace; } .ds-search-bar::before { content: ''; position: absolute; left: 0; top: 0; width: 2px; height: 100%; background: rgba(230,25,25,0.70); } .ds-search-label { color: rgba(100,100,105,0.50); font-size: 14px; font-family: monospace; }"
+    },
+    {
+      "name": "Search Bar (Active Query)",
+      "kind": "input",
+      "refersTo": "search-bar-active",
+      "description": "Search bar with active query and blinking cursor block.",
+      "html": "<div class=\"ds-search-bar\"><span class=\"ds-search-prefix\">[ >> </span><span class=\"ds-search-query\">FIREFOX</span><span class=\"ds-search-suffix\"> ]</span><span class=\"ds-search-cursor\"></span></div>",
+      "css": ".ds-search-bar { background: rgba(15,15,18,0.85); width: 420px; height: 40px; border: 1px solid rgba(230,25,25,0.40); border-radius: 0; display: flex; align-items: center; padding: 0 16px; position: relative; font-family: monospace; } .ds-search-bar::before { content: ''; position: absolute; left: 0; top: 0; width: 2px; height: 100%; background: rgba(230,25,25,0.70); } .ds-search-prefix, .ds-search-suffix { color: rgba(234,234,234,0.90); font-size: 14px; font-family: monospace; } .ds-search-query { color: rgba(234,234,234,0.90); font-size: 14px; font-family: monospace; font-weight: bold; } .ds-search-cursor { display: inline-block; width: 7px; height: 16px; background: rgba(230,25,25,0.70); margin-left: 4px; animation: ds-blink 1s step-end infinite; } @keyframes ds-blink { 50% { opacity: 0; } }"
+    },
+    {
+      "name": "Hover Label",
+      "kind": "custom",
+      "refersTo": "hover-label",
+      "description": "Telemetry tag shown below hovered icon — ASCII-framed with terminal prompt prefix.",
+      "html": "<div class=\"ds-hover-label\">>>> FIREFOX</div>",
+      "css": ".ds-hover-label { background: rgba(15,15,18,0.85); border: 1px solid rgba(230,25,25,0.40); border-radius: 0; padding: 5px 8px; font-family: monospace; font-weight: bold; font-size: 14px; color: rgba(234,234,234,0.95); position: relative; display: inline-block; } .ds-hover-label::before { content: ''; position: absolute; left: 0; top: 0; width: 2px; height: 100%; background: rgba(230,25,25,0.70); }"
+    },
+    {
+      "name": "Fallback Icon Badge",
+      "kind": "custom",
+      "refersTo": "fallback-icon",
+      "description": "Square mechanical badge for apps without a resolvable icon. Letter initial with accent left-edge and corner notch.",
+      "html": "<div class=\"ds-fallback-icon\"><span class=\"ds-fallback-letter\">F</span><span class=\"ds-fallback-notch\"></span></div>",
+      "css": ".ds-fallback-icon { width: 44px; height: 44px; background: rgba(15,15,18,0.45); border-radius: 0; display: flex; align-items: center; justify-content: center; position: relative; font-family: monospace; } .ds-fallback-icon::before { content: ''; position: absolute; left: 2px; top: 2px; width: 3px; height: calc(100% - 4px); background: rgba(230,25,25,0.85); } .ds-fallback-letter { color: rgba(234,234,234,1.0); font-size: 20px; font-weight: bold; font-family: monospace; } .ds-fallback-notch { position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; border-top: 1.5px solid rgba(230,25,25,0.60); border-right: 1.5px solid rgba(230,25,25,0.60); }"
+    },
+    {
+      "name": "Omega Centerpiece",
+      "kind": "custom",
+      "refersTo": "omega-centerpiece",
+      "description": "Central anchor — serif omega glyph in aviation red, or custom PNG image.",
+      "html": "<span class=\"ds-omega\">Ω</span>",
+      "css": ".ds-omega { font-family: serif; font-weight: bold; font-size: 220px; color: rgba(230,25,25,0.80); line-height: 1; user-select: none; }"
+    },
+    {
+      "name": "Keyboard Focus Indicator",
+      "kind": "custom",
+      "refersTo": "focus-indicator",
+      "description": "Four corner brackets marking the keyboard-focused icon. Aviation red, 2px stroke.",
+      "html": "<div class=\"ds-focus-indicator\"><span class=\"ds-focus-tl\"></span><span class=\"ds-focus-tr\"></span><span class=\"ds-focus-br\"></span><span class=\"ds-focus-bl\"></span></div>",
+      "css": ".ds-focus-indicator { width: 52px; height: 52px; position: relative; } .ds-focus-indicator span { position: absolute; width: 12px; height: 12px; border-color: rgba(230,25,25,0.80); border-style: solid; } .ds-focus-tl { top: 0; left: 0; border-width: 2px 0 0 2px; } .ds-focus-tr { top: 0; right: 0; border-width: 2px 2px 0 0; } .ds-focus-br { bottom: 0; right: 0; border-width: 0 2px 2px 0; } .ds-focus-bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }"
+    },
+    {
+      "name": "Icon Satellite (Normal)",
+      "kind": "custom",
+      "refersTo": "icon-satellite",
+      "description": "A single application icon satellite — red monochrome recolor on void background.",
+      "html": "<div class=\"ds-icon-satellite\"><div class=\"ds-icon-placeholder\"></div></div>",
+      "css": ".ds-icon-satellite { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; } .ds-icon-placeholder { width: 36px; height: 36px; background: rgba(230,25,25,0.60); border-radius: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Declassified Blueprint",
+    "overview": "Orbital Launcher is a single-purpose Linux desktop launcher rendered as a 3D spherical icon cloud. Its visual language draws from military terminal displays, aviation instrument panels, and declassified engineering documents — raw, honest, structurally expressed. Every visual element is justified by function; decoration that doesn't serve the task is prohibited. The interface lives in a dark void (#0A0A0A — the color of a deactivated CRT phosphor screen, not pure black). A single surgical accent (aviation hazard red, #E61919) marks structural edges, the central omega anchor, and the keyboard focus indicator. Text is exclusively monospace, set against the void with no intermediate surfaces except the elevated panel (#0F0F12). Depth is conveyed through alpha falloff, perspective scale, and painter's-sort layering — without wireframes, orbital path rings, or surface textures. The sphere is felt, not drawn.",
+    "keyCharacteristics": [
+      "Single accent color (aviation red) used at ≤15% of any frame",
+      "Zero border-radius — every rectangle has sharp mechanical corners",
+      "Monospace typography throughout; Serif reserved for the omega glyph only",
+      "Depth expressed through alpha + scale + layering, never shadows",
+      "CRT textural overlays (noise grain, scanlines) available but off by default",
+      "No settings UI — all tuning is code-level configuration"
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Aviation red is the only accent color permitted in the interface. Terminal green is a status-only signal reserved for future use. No other saturated colors appear — the desktop icons themselves are recolored to red monochrome unless they come from a recognized red theme.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Round Rule",
+        "body": "Every rectangle, border, and panel has 0px border-radius. Sharp corners are the default and only option. If a corner appears rounded, it's a bug.",
+        "section": "colors"
+      },
+      {
+        "name": "The Monospace Mandate",
+        "body": "All UI text — labels, search, fallback letters, telemetry — must be monospace. Serif is reserved exclusively for the omega glyph. Sans-serif fonts are prohibited.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "No element casts a shadow. The interface is flat at rest. The only depth cues are the three projective cues: alpha falloff, perspective scale, and painter's sort. If an element needs to read as elevated, use the Elevated Panel background color — nothing else.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the Elevated Panel (#0F0F12) for any surface that must read above the void",
+      "Do use aviation red (#E61919) exclusively for edges, borders, the omega, and focus — never as a surface fill",
+      "Do keep all corners sharp (0px radius) on every rectangle and panel",
+      "Do use monospace for all UI text; Serif is reserved for the omega glyph only",
+      "Do convey depth through alpha falloff, perspective scale, and draw order — never shadows",
+      "Do keep the interface to four elements: icons, omega, search bar, hover label",
+      "Do let the void (#0A0A0A) dominate — the interface is sparse by design"
+    ],
+    "donts": [
+      "Don't use translucent frosted glass or blur effects (glassmorphism)",
+      "Don't use rounded corners — not on cards, not on buttons, not on inputs. 0px radius everywhere",
+      "Don't use colorful icon-grid layouts (macOS Launchpad, GNOME app grid)",
+      "Don't render skeuomorphic 3D planet textures or orbital path rings — the sphere is implied, not drawn",
+      "Don't add superfluous connecting lines or decorative geometry",
+      "Don't add gradient text, box shadows, or repeating-linear-gradient stripes",
+      "Don't introduce a second accent color — terminal green is reserved for future status use only",
+      "Don't add settings UI, category filters, or configuration panels — the launcher does one thing",
+      "Don't use sans-serif fonts anywhere in the interface",
+      "Don't apply border-radius greater than 0px"
+    ]
+  }
+}
