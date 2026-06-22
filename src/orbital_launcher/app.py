@@ -25,7 +25,7 @@ gi.require_version("Gio", "2.0")
 
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Gio
 
-from .config import cfg, PID_FILE
+from .config import cfg, PID_FILE, load_user_config
 from .icons import IconLoader, IconEntry
 from .lattice import deterministic_params
 from .renderer import Renderer
@@ -621,7 +621,14 @@ class OrbitalLauncherApp(Gtk.Application):
                     file=sys.stderr,
                 )
 
-        # Detect reduced-motion preference from GTK settings
+        # ── Load user config (must run before IconLoader so accent/theme
+        #     are already applied when icons are loaded and recoloured) ──
+        load_user_config()
+
+        # Detect reduced-motion preference from GTK settings.
+        # Runs AFTER user config so the user's explicit drift_rate choice
+        # is respected.  Only zeroes drift when the user left it at the
+        # default (3.0) — an explicit override always wins.
         try:
             gtk_settings = Gtk.Settings.get_default()
             if gtk_settings:
@@ -630,19 +637,29 @@ class OrbitalLauncherApp(Gtk.Application):
                 )
                 if not animations_enabled:
                     cfg.reduced_motion = True
-                    cfg.drift_rate = 0.0
-                    print(
-                        "[orbital-launcher] Reduced motion: drift disabled",
-                        file=sys.stderr,
-                    )
+                    if cfg.drift_rate == 3.0:
+                        # User left the default — safe to zero for a11y
+                        cfg.drift_rate = 0.0
+                        print(
+                            "[orbital-launcher] Reduced motion: drift disabled",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(
+                            "[orbital-launcher] Reduced motion is enabled, "
+                            f"but user set drift_rate={cfg.drift_rate} — "
+                            "respecting user choice.",
+                            file=sys.stderr,
+                        )
         except Exception:
             pass
 
         # Scan or load cache
         entries = desktop_scan()
 
-        # Get display for icon loader
-        self.icon_loader = IconLoader(display)
+        # Get display for icon loader (with optional custom theme)
+        theme_name = cfg.icon_theme_name if cfg.icon_theme_name else None
+        self.icon_loader = IconLoader(display, theme_name)
 
         # Sort entries deterministically so each app gets a stable lattice index.
         # Hash the name, sort by that hash — same order every launch.
@@ -650,13 +667,11 @@ class OrbitalLauncherApp(Gtk.Application):
             return hashlib.sha256(e["name"].encode()).hexdigest()
         entries.sort(key=_sort_key)
 
-        # Build icon entries — each gets a fixed vertex on the icosidodecahedron
+        # Build icon entries — each gets a fixed vertex on the Fibonacci sphere
         total = len(entries)
-        shells = min(3, (total - 1) // 30 + 1)
         print(
-            f"[orbital-launcher] Distributing {total} apps on icosidodecahedron "
-            f"(30 vertices × {shells} shell{'s' if shells > 1 else ''}"
-            f" = {30 * shells} unique positions)",
+            f"[orbital-launcher] Distributing {total} apps on Fibonacci sphere "
+            f"(200 vertices, single-shell rigid body)",
             file=sys.stderr,
         )
         icons = []

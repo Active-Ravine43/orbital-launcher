@@ -8,20 +8,12 @@ perspective scale, and painter's-sort layering — without wireframes,
 orbital path rings, or surface textures.
 """
 
+import math
 from typing import Optional
 
 import cairo  # pycairo
 
-from .colors import (
-    CLR_ACCENT_A40,
-    CLR_ACCENT_A70,
-    CLR_ACCENT_A80,
-    CLR_DIM,
-    CLR_FG_A90,
-    CLR_FG_A95,
-    CLR_SURFACE_A85,
-    CLR_VOID,
-)
+from .colors import palette
 from .config import cfg
 from .icons import IconEntry, make_fallback_icon
 from .math3d import _rotate_x, _rotate_y, project_rotated
@@ -166,7 +158,7 @@ class Renderer:
             half_w = sw / 2
             half_h = sh / 2
             bracket_len = min(12, half_w * 0.35, half_h * 0.35)
-            cr.set_source_rgba(*CLR_ACCENT_A80)
+            cr.set_source_rgba(*palette.accent_a80)
             cr.set_line_width(2)
             # Top-left
             cr.move_to(-half_w, -half_h + bracket_len)
@@ -214,7 +206,7 @@ class Renderer:
             cr.set_font_size(cfg.omega_font_size * cfg.dpi_scale)
             xb, yb, tw, th, dx, dy = cr.text_extents("Ω")
             cr.move_to(cx - tw / 2 - xb, cy - th / 2 - yb)
-            cr.set_source_rgba(*CLR_ACCENT_A80)
+            cr.set_source_rgba(*palette.accent_a80)
             cr.show_text("Ω")
 
         cr.restore()
@@ -240,26 +232,48 @@ class Renderer:
 
         # Background — square rect, no radius
         cr.rectangle(lx, ly, lw, lh)
-        cr.set_source_rgba(*CLR_SURFACE_A85)
+        cr.set_source_rgba(*palette.surface_a85)
         cr.fill()
 
         # Accent left edge — mechanical strikethrough
         cr.rectangle(lx, ly, max(1, 1 * dpi), lh)
-        cr.set_source_rgba(*CLR_ACCENT_A70)
+        cr.set_source_rgba(*palette.accent_a70)
         cr.fill()
 
         # Border — full rect, no radius
         cr.rectangle(lx, ly, lw, lh)
-        cr.set_source_rgba(*CLR_ACCENT_A40)
+        cr.set_source_rgba(*palette.accent_a40)
         cr.set_line_width(max(1, dpi))
         cr.stroke()
 
         # Text — monospace phosphor
         cr.move_to(lx + pad_x - xb, ly + lh - pad_y - yb - th)
-        cr.set_source_rgba(*CLR_FG_A95)
+        cr.set_source_rgba(*palette.fg_a95)
         cr.show_text(text)
 
         cr.restore()
+
+    @staticmethod
+    def _rounded_rect(
+        cr: cairo.Context, x: float, y: float, w: float, h: float, r: float
+    ):
+        """Draw a rectangle with optional rounded corners.
+
+        *r* is the corner radius in pixels.  When *r* ≤ 0 a standard sharp
+        ``cr.rectangle()`` is used (the brutalist default).
+        """
+        if r <= 0:
+            cr.rectangle(x, y, w, h)
+            return
+        # Clamp radius so it never exceeds half the smallest side
+        r = min(r, w / 2, h / 2)
+        half_pi = math.pi / 2
+        cr.new_sub_path()
+        cr.arc(x + r, y + r, r, math.pi, math.pi + half_pi)           # top-left
+        cr.arc(x + w - r, y + r, r, math.pi + half_pi, 2 * math.pi)   # top-right
+        cr.arc(x + w - r, y + h - r, r, 0, half_pi)                   # bottom-right
+        cr.arc(x + r, y + h - r, r, half_pi, math.pi)                 # bottom-left
+        cr.close_path()
 
     def _draw_search_bar(self, cr: cairo.Context, win_width: float):
         """Draw the search bar — industrial telemetry input panel. DPI-aware."""
@@ -271,19 +285,23 @@ class Renderer:
         bx = (win_width - bw) / 2
         by = cfg.search_bar_margin_top * dpi
 
-        # Background — square rect
-        cr.rectangle(bx, by, bw, bh)
-        cr.set_source_rgba(*CLR_SURFACE_A85)
+        corner_r = cfg.search_bar_corner_radius * dpi
+
+        # Background
+        self._rounded_rect(cr, bx, by, bw, bh, corner_r)
+        cr.set_source_rgba(*palette.surface_a85)
         cr.fill()
 
-        # Accent left-edge strikethrough
-        cr.rectangle(bx, by, max(1, 1 * dpi), bh)
-        cr.set_source_rgba(*CLR_ACCENT_A70)
+        # Accent left-edge strikethrough (always sharp — structural element)
+        cr.rectangle(bx, by + (corner_r if corner_r > 0 else 0),
+                     max(1, 1 * dpi),
+                     bh - (2 * corner_r if corner_r > 0 else 0))
+        cr.set_source_rgba(*palette.accent_a70)
         cr.fill()
 
-        # Border — all edges, no radius
-        cr.rectangle(bx, by, bw, bh)
-        cr.set_source_rgba(*CLR_ACCENT_A40)
+        # Border
+        self._rounded_rect(cr, bx, by, bw, bh, corner_r)
+        cr.set_source_rgba(*palette.accent_a40)
         cr.set_line_width(max(1, dpi))
         cr.stroke()
 
@@ -305,9 +323,9 @@ class Renderer:
         ty = by + bh / 2 - th / 2 - yb
 
         if is_placeholder:
-            cr.set_source_rgba(*CLR_DIM[:3], 0.50)
+            cr.set_source_rgba(*palette.dim[:3], 0.50)
         else:
-            cr.set_source_rgba(*CLR_FG_A90)
+            cr.set_source_rgba(*palette.fg_a90)
 
         cr.move_to(tx, ty)
         cr.show_text(display)
@@ -315,7 +333,7 @@ class Renderer:
         # Cursor — blinking block character (mechanical)
         if not is_placeholder and self.state.search_focused:
             clx = tx + tw + 4 * dpi
-            cr.set_source_rgba(*CLR_ACCENT_A70)
+            cr.set_source_rgba(*palette.accent_a70)
             cr.rectangle(clx, ty - 1, 7 * dpi, th + 2)
             cr.fill()
 
@@ -334,7 +352,7 @@ class Renderer:
         # ── Noise grain surface ──
         self._noise_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
         ncr = cairo.Context(self._noise_surface)
-        ncr.set_source_rgba(*CLR_VOID[:3], 0.015)
+        ncr.set_source_rgba(*palette.void[:3], 0.015)
         ncr.set_line_width(0.3)
         step = 4
         y = 0
@@ -347,7 +365,7 @@ class Renderer:
         # ── Scanline surface ──
         self._scanline_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
         scr = cairo.Context(self._scanline_surface)
-        scr.set_source_rgba(*CLR_VOID[:3], cfg.scanline_opacity)
+        scr.set_source_rgba(*palette.void[:3], cfg.scanline_opacity)
         line_spacing = 3
         y = 0
         while y < h:

@@ -21,7 +21,7 @@ gi.require_version("Gio", "2.0")
 
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Gio
 
-from .colors import CLR_ACCENT, CLR_FG, CLR_SURFACE
+from .colors import palette
 from .config import cfg
 
 
@@ -33,10 +33,14 @@ from .config import cfg
 class IconLoader:
     """Resolve icon names to cairo.ImageSurface via GTK4 IconTheme + fallbacks."""
 
-    def __init__(self, display: Gdk.Display):
+    def __init__(self, display: Gdk.Display, theme_name: Optional[str] = None):
         self._cache: dict[str, Optional["cairo.ImageSurface"]] = {}
-        self._theme = Gtk.IconTheme.get_for_display(display)
         self._display = display
+        if theme_name:
+            self._theme = Gtk.IconTheme.new()
+            self._theme.set_theme_name(theme_name)
+        else:
+            self._theme = Gtk.IconTheme.get_for_display(display)
 
     def load(self, icon_name: str) -> Optional["cairo.ImageSurface"]:
         if icon_name in self._cache:
@@ -100,7 +104,7 @@ class IconLoader:
         n_channels = pb.get_n_channels()
         w, h = pb.get_width(), pb.get_height()
         pixels = bytearray(pb.get_pixels())
-        ar, ag, ab = CLR_ACCENT[:3]
+        ar, ag, ab = palette.accent[:3]
 
         for y in range(h):
             for x in range(w):
@@ -212,7 +216,7 @@ def make_fallback_icon(letter: str) -> "cairo.ImageSurface":
     """Draw a square mechanical badge — industrial brutalist fallback.
 
     Alpha values are tuned for mask-based rendering: the surface is used
-    as an alpha mask filled with CLR_ACCENT, so higher alpha = brighter red.
+    as an alpha mask filled with the accent colour, so higher alpha = brighter.
     The letter is brightest (α=1.0), background is dim (α=0.45), and the
     left-edge accent stripe is a bright structural element (α=0.85).
     """
@@ -223,18 +227,18 @@ def make_fallback_icon(letter: str) -> "cairo.ImageSurface":
 
     # Dim background — recedes in mask rendering
     cr.rectangle(inset, inset, size - 2 * inset, size - 2 * inset)
-    cr.set_source_rgba(*CLR_SURFACE[:3], 0.45)
+    cr.set_source_rgba(*palette.surface[:3], 0.45)
     cr.fill()
 
     # Bright accent left-edge strikethrough
     cr.rectangle(inset, inset, max(1, 1 * cfg.dpi_scale), size - 2 * inset)
-    cr.set_source_rgba(*CLR_ACCENT[:3], 0.85)
+    cr.set_source_rgba(*palette.accent[:3], 0.85)
     cr.fill()
 
     # Top-right corner notch (mechanical detail)
     cr.move_to(size - inset - 8, inset)
     cr.line_to(size - inset, inset + 8)
-    cr.set_source_rgba(*CLR_ACCENT[:3], 0.60)
+    cr.set_source_rgba(*palette.accent[:3], 0.60)
     cr.set_line_width(1.5)
     cr.stroke()
 
@@ -243,7 +247,7 @@ def make_fallback_icon(letter: str) -> "cairo.ImageSurface":
     cr.set_font_size(size * 0.45)
     xb, yb, tw, th, dx, dy = cr.text_extents(letter.upper())
     cr.move_to(size / 2 - tw / 2 - xb, size / 2 - th / 2 - yb)
-    cr.set_source_rgba(*CLR_FG[:3], 1.0)
+    cr.set_source_rgba(*palette.fg[:3], 1.0)
     cr.show_text(letter.upper())
 
     return surf
