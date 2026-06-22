@@ -35,7 +35,7 @@ sudo pacman -S gtk4-layer-shell
 ## Installation
 
 ```bash
-git clone https://github.com/<user>/orbital-launcher.git
+git clone git@github.com:Active-Ravine43/orbital-launcher.git
 cd orbital-launcher
 ```
 

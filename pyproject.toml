@@ -12,4 +12,4 @@ dependencies = [
 orbital-launcher = "orbital_launcher.app:main"
 
 [project.urls]
-Homepage = "https://github.com/user/orbital-launcher"
+Homepage = "https://github.com/Active-Ravine43/orbital-launcher"
