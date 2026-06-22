@@ -13,13 +13,14 @@ class OrbitalState:
 
     def __init__(self):
         self.icons: list[IconEntry] = []
-        self.visible: bool = True
+        self.visible: bool = False
         self.zoom: float = 1.0
         self.rotation_lon: float = 0.0  # manual drag offset
         self.rotation_lat: float = 0.0  # manual drag offset (tilt)
         self.time_elapsed: float = 0.0
         self.search_query: str = ""
         self.search_focused: bool = False
+        self.filtered_icon_ids: set[int] = set()  # id(icon) of filtered-out icons
         self.hovered_icon: Optional[IconEntry] = None
         self.focused_icon: Optional[IconEntry] = None  # keyboard focus
         self.dragging: bool = False

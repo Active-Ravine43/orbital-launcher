@@ -276,7 +276,6 @@ class IconEntry:
     # Runtime
     surface: Optional["cairo.ImageSurface"] = None
     launch_count: int = 0
-    filtered_out: bool = False
     # Per-frame projection cache
     sx: float = 0
     sy: float = 0

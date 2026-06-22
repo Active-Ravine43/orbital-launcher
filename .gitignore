@@ -6,4 +6,10 @@ data/
 build/
 dist/
 venv/
+.impeccable/
+DESIGN.md
+PRODUCT.md
 .env
+config
+app_cache.json
+state.json 

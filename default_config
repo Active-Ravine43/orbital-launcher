@@ -1,0 +1,44 @@
+# Orbital Launcher — default configuration (tracked in git)
+# Copy this to `config` and edit to customize.
+# Lines starting with # are ignored.
+
+# ── Visual ──────────────────────────────────────────────────────────
+
+# Path to a custom center image (PNG).  Leave empty for the omega glyph.
+# Supports absolute paths, ~/ paths, or filenames in ~/Pictures/
+central_image = GOW_Omega.png
+
+# Center image display size in logical pixels (64–400)
+central_image_size = 280
+
+# Accent colour: a hex colour (#E61919), or "system" to detect from GTK theme
+accent_color = #E61919
+
+# Icon theme name.  Leave empty to use the system default.
+icon_theme =
+
+# Base icon size in logical pixels (24–96)
+icon_size = 36
+
+# Search bar width in logical pixels (200–800)
+search_bar_width = 420
+
+# Search bar position: "top" or "bottom"
+search_bar_position = top
+
+# Search bar corners: "rigid" (0 px, sharp) or "rounded" (8 px radius)
+search_bar_corners = rigid
+
+# CRT scanline overlay: "on" or "off"
+scanlines = off
+
+# ── Orbital ─────────────────────────────────────────────────────────
+
+# Distance from center: inner shell radius (20–200)
+inner_radius = 35
+
+# Distance from center: outer shell radius (200–600)
+outer_radius = 400
+
+# Natural orbit drift speed in degrees/second (0 = no drift, 10 = fast)
+drift_rate = 3.0

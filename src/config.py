@@ -1,12 +1,12 @@
 """Orbital Launcher — configuration, constants, and paths.
 
-Uses XDG_DATA_HOME for runtime data (apps_cache.json, state.json)
-with automatic migration from the legacy rice directory on first run.
+XDG_DATA_HOME is used for runtime data (apps_cache.json, state.json).
+XDG_CONFIG_HOME is used for the user config file.
 
-User overrides live in ``$XDG_CONFIG_HOME/orbital-launcher/config`` —
-a simple KEY = VALUE file (like .env).  Edit it by hand, then restart
-the launcher.  If the file is missing, it is created with documented
-defaults.
+Config resolution order:
+  1. ``$XDG_CONFIG_HOME/orbital-launcher/config``  (primary — user config)
+  2. ``<repo-root>/config``                         (fallback — cloned config)
+  3. Seeded from ``<repo-root>/default_config``     (first-run template)
 """
 
 import os
@@ -17,18 +17,25 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# ── Runtime data paths (XDG standard) ──────────────────────────────
+# ── Repo root (where launcher.py and default_config live) ──────────────
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
-_XDG_DATA = Path(
-    os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")
-)
+# ── XDG paths ─────────────────────────────────────────────────────────
 _XDG_CONFIG = Path(
     os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")
+)
+_XDG_DATA = Path(
+    os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")
 )
 
 DATA_DIR = _XDG_DATA / "orbital-launcher"
 CONFIG_DIR = _XDG_CONFIG / "orbital-launcher"
-CONFIG_FILE = CONFIG_DIR / "config"
+
+DEFAULT_CONFIG_FILE = _REPO_ROOT / "default_config"
+# Primary: XDG config dir.  Fallback: repo root.
+_XDG_CONFIG_FILE = CONFIG_DIR / "config"
+_REPO_CONFIG_FILE = _REPO_ROOT / "config"
+CONFIG_FILE = _XDG_CONFIG_FILE if _XDG_CONFIG_FILE.exists() else _REPO_CONFIG_FILE
 
 CACHE_FILE = DATA_DIR / "apps_cache.json"
 STATE_FILE = DATA_DIR / "state.json"
@@ -39,25 +46,8 @@ DESKTOP_DIRS = [
     Path.home() / ".local/share/applications",
 ]
 
-# Legacy path — used for one-time migration
-_LEGACY_DIR = Path.home() / ".config/rices/omega-blackred/orbital-launcher"
-
-
-def _migrate_data():
-    """Copy legacy data from the rice config directory if XDG path is empty."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    for fname in ("apps_cache.json", "state.json"):
-        new_path = DATA_DIR / fname
-        old_path = _LEGACY_DIR / fname
-        if old_path.exists() and not new_path.exists():
-            try:
-                shutil.copy2(old_path, new_path)
-            except OSError:
-                pass
-
-
-# Run migration at import time — transparent, no user intervention needed
-_migrate_data()
+# Data dir — ensure it exists at import time
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ── Tunable constants ───────────────────────────────────────────────
@@ -73,7 +63,7 @@ class Cfg:
     lat_max: float = 60
     speed_min: float = 0.3  # degrees/sec
     speed_max: float = 0.8
-    drift_rate: float = 3.0  # degrees/sec natural orbit
+    drift_rate: float = 0.0  # degrees/sec natural orbit — off by default
 
     # Camera / projection — near-orthographic for uniform icon sizes
     camera_distance: float = 1500   # moderate distance → visible but restrained depth
@@ -97,8 +87,9 @@ class Cfg:
     hover_scale: float = 1.30
     search_bar_height: float = 40
     search_bar_width: float = 420
-    search_bar_margin_top: float = 18
-    search_bar_corner_radius: float = 0       # 0 = rigid (default), 8 = rounded
+    search_bar_margin: float = 18              # distance from edge (top or bottom)
+    search_bar_position: str = "bottom"           # "top" or "bottom"
+    search_bar_corner_radius: float = 8        # 0 = rigid (default), 8 = rounded
     icon_scale_floor: float = 0.45  # minimum scale — keeps icons ≥~20px at 44 base
 
     # Interaction
@@ -126,51 +117,6 @@ cfg = Cfg()
 # ═══════════════════════════════════════════════════════════════════════
 # User config file (KEY = VALUE, like .env)
 # ═══════════════════════════════════════════════════════════════════════
-
-_DEFAULT_CONFIG = """\
-# Orbital Launcher — user configuration
-# Edit this file and restart the launcher for changes to take effect.
-# Lines starting with # are ignored.
-
-# ── Visual ──────────────────────────────────────────────────────────
-
-# Path to a custom center image (PNG).  Leave empty for the omega glyph.
-# Supports absolute paths, ~/ paths, or filenames in ~/Pictures/
-central_image = GOW_Omega.png
-
-# Center image display size in logical pixels (64–400)
-central_image_size = 280
-
-# Accent colour: a hex colour (#E61919), or "system" to detect from GTK theme
-accent_color = #E61919
-
-# Icon theme name.  Leave empty to use the system default.
-icon_theme =
-
-# Base icon size in logical pixels (24–96)
-icon_size = 36
-
-# Search bar width in logical pixels (200–800)
-search_bar_width = 420
-
-# Search bar corners: "rigid" (0 px, sharp) or "rounded" (8 px radius)
-search_bar_corners = rigid
-
-# CRT scanline overlay: "on" or "off"
-scanlines = off
-
-# ── Orbital ─────────────────────────────────────────────────────────
-
-# Distance from center: inner shell radius (20–200)
-inner_radius = 35
-
-# Distance from center: outer shell radius (200–600)
-outer_radius = 400
-
-# Natural orbit drift speed in degrees/second (0 = no drift, 10 = fast)
-drift_rate = 3.0
-"""
-
 
 # ── System accent detection ─────────────────────────────────────────
 
@@ -253,25 +199,63 @@ def _detect_system_accent() -> Optional[str]:
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _determine_config_file():
+    """Resolve CONFIG_FILE: XDG config dir first, then repo root."""
+    global CONFIG_FILE
+    if _XDG_CONFIG_FILE.exists():
+        CONFIG_FILE = _XDG_CONFIG_FILE
+    else:
+        CONFIG_FILE = _REPO_CONFIG_FILE
+
+
+def _read_default_config() -> str:
+    """Return the contents of ``default_config``, or a minimal fallback."""
+    try:
+        if DEFAULT_CONFIG_FILE.exists():
+            return DEFAULT_CONFIG_FILE.read_text()
+    except OSError:
+        pass
+    # Absolute minimal fallback — should never be reached
+    return ""
+
+
 def load_user_config():
     """Parse the user config file and apply settings to ``cfg`` and ``palette``.
 
-    If the config file doesn't exist it is created with documented defaults.
+    Config resolution (first wins):
+      1. ``$XDG_CONFIG_HOME/orbital-launcher/config``  (primary)
+      2. ``<repo-root>/config``                         (fallback)
+
+    If neither exists, the XDG config is seeded from ``default_config``.
     Unknown keys are silently ignored.  Malformed values print a warning to
     stderr and fall back to their defaults.
     """
     from .colors import palette
 
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    _determine_config_file()
 
-    # Seed the file if missing
+    # Seed config from default_config if no config file exists
     if not CONFIG_FILE.exists():
         try:
-            CONFIG_FILE.write_text(_DEFAULT_CONFIG)
-            print(
-                f"[orbital-launcher] Config file created at {CONFIG_FILE}",
-                file=sys.stderr,
-            )
+            template = _read_default_config()
+            if template:
+                # Prefer seeding into XDG config dir
+                seed_target = _XDG_CONFIG_FILE if not _REPO_CONFIG_FILE.exists() else _REPO_CONFIG_FILE
+                if not seed_target.parent.exists():
+                    seed_target.parent.mkdir(parents=True, exist_ok=True)
+                seed_target.write_text(template)
+                # Re-resolve after seeding
+                _determine_config_file()
+                print(
+                    f"[orbital-launcher] Config seeded from default_config → {CONFIG_FILE}",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"[orbital-launcher] No default_config found and no config exists. "
+                    f"Using internal defaults.",
+                    file=sys.stderr,
+                )
         except OSError as e:
             print(
                 f"[orbital-launcher] Could not write config file: {e}",
@@ -379,6 +363,20 @@ def load_user_config():
 
     # --- search_bar_width ---
     cfg.search_bar_width = _parse_float(raw, "search_bar_width", 420, 200, 800)
+
+    # --- search_bar_margin ---
+    cfg.search_bar_margin = _parse_float(raw, "search_bar_margin", 18, 0, 120)
+
+    # --- search_bar_position ---
+    pos_val = raw.get("search_bar_position", "top").lower()
+    if pos_val in ("bottom", "btm", "bot"):
+        cfg.search_bar_position = "bottom"
+    else:
+        cfg.search_bar_position = "top"
+    print(
+        f"[orbital-launcher] Search bar position: {cfg.search_bar_position}",
+        file=sys.stderr,
+    )
 
     # --- search_bar_corners ---
     corners_val = raw.get("search_bar_corners", "rigid").lower()

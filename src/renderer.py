@@ -47,7 +47,14 @@ class Renderer:
         # they never change relative to each other.  Drag = rotate the
         # entire lattice; no vertex drifts.
         projected = []
-        cx, cy = width / 2, height / 2
+        cx = width / 2
+        # Shift the orbital centre up slightly when the search bar is at the
+        # bottom so it doesn't feel visually low next to the input panel.
+        if cfg.search_bar_position == "bottom":
+            bar_zone = (cfg.search_bar_height + cfg.search_bar_margin) * cfg.dpi_scale
+            cy = (height - bar_zone) / 2
+        else:
+            cy = height / 2
         for icon in self.state.icons:
             # 1. Fixed 3D vertex, scaled by zoom + configured radius
             r = icon.radius * self.state.zoom
@@ -89,7 +96,7 @@ class Renderer:
                 self._draw_icon(cr, icon)
 
         # 2. Draw omega (always visible, between back and front layers)
-        self._draw_omega(cr, width / 2, height / 2)
+        self._draw_omega(cr, cx, cy)
 
         # 3. Draw icons in front of the omega
         if self.state.visible:
@@ -106,7 +113,7 @@ class Renderer:
 
         # Draw search bar
         if self.state.visible:
-            self._draw_search_bar(cr, width)
+            self._draw_search_bar(cr, width, height)
 
         # CRT textural overlays (last, above everything)
         self._draw_noise(cr, width, height)
@@ -122,7 +129,7 @@ class Renderer:
         alpha = cfg.alpha_min + z_norm * (cfg.alpha_max - cfg.alpha_min)
         alpha = max(0.0, min(1.0, alpha))
 
-        if icon.filtered_out:
+        if id(icon) in self.state.filtered_icon_ids:
             alpha *= cfg.filtered_alpha
 
         # Hover boost
@@ -212,11 +219,10 @@ class Renderer:
         cr.restore()
 
     def _draw_hover_label(self, cr: cairo.Context, icon: IconEntry):
-        """Draw app name label — industrial ASCII-framed telemetry tag."""
+        """Draw app name label — clean telemetry tag."""
         cr.save()
 
-        prefix = ">>> "
-        text = prefix + icon.name.upper()
+        text = icon.name.upper()
         cr.select_font_face(
             "Monospace", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD
         )
@@ -275,15 +281,22 @@ class Renderer:
         cr.arc(x + r, y + h - r, r, half_pi, math.pi)                 # bottom-left
         cr.close_path()
 
-    def _draw_search_bar(self, cr: cairo.Context, win_width: float):
-        """Draw the search bar — industrial telemetry input panel. DPI-aware."""
+    def _draw_search_bar(self, cr: cairo.Context, win_width: float, win_height: float):
+        """Draw the search bar — clean telemetry input panel. DPI-aware.
+        Position (top/bottom) controlled by ``cfg.search_bar_position``."""
         cr.save()
 
         dpi = cfg.dpi_scale
         bw = cfg.search_bar_width * dpi
         bh = cfg.search_bar_height * dpi
         bx = (win_width - bw) / 2
-        by = cfg.search_bar_margin_top * dpi
+
+        # Vertical position: top or bottom edge
+        margin = cfg.search_bar_margin * dpi
+        if cfg.search_bar_position == "bottom":
+            by = win_height - bh - margin
+        else:
+            by = margin
 
         corner_r = cfg.search_bar_corner_radius * dpi
 
@@ -305,13 +318,13 @@ class Renderer:
         cr.set_line_width(max(1, dpi))
         cr.stroke()
 
-        # Label frame prefix — `[ SEARCH ]` or `[ >> QUERY ]`
+        # Label — clean text, no brackets or glyphs
         query = self.state.search_query.upper()
         is_placeholder = not query
         if is_placeholder:
-            display = "[ SEARCH ]"
+            display = "SEARCH"
         else:
-            display = f"[ >> {query} ]" if len(query) <= 28 else f"[ >> {query[:26]}.. ]"
+            display = query if len(query) <= 28 else f"{query[:26]}.."
 
         cr.select_font_face(
             "Monospace", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL
