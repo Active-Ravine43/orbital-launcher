@@ -67,8 +67,8 @@ class Cfg:
     """Tunable constants for the orbital launcher."""
 
     # Sphere
-    inner_radius: float = 240
-    outer_radius: float = 440
+    inner_radius: float = 35
+    outer_radius: float = 400
     lat_min: float = -60  # degrees
     lat_max: float = 60
     speed_min: float = 0.3  # degrees/sec
@@ -91,7 +91,7 @@ class Cfg:
     icon_theme_name: str = ""
 
     label_font_size: float = 14               # scaled by dpi at render time
-    alpha_min: float = 0.30
+    alpha_min: float = 0.80
     alpha_max: float = 1.0
     filtered_alpha: float = 0.08
     hover_scale: float = 1.30
@@ -161,11 +161,11 @@ scanlines = off
 
 # ── Orbital ─────────────────────────────────────────────────────────
 
-# Distance from center: inner shell radius (80–300)
-inner_radius = 240
+# Distance from center: inner shell radius (20–200)
+inner_radius = 35
 
 # Distance from center: outer shell radius (200–600)
-outer_radius = 440
+outer_radius = 400
 
 # Natural orbit drift speed in degrees/second (0 = no drift, 10 = fast)
 drift_rate = 3.0
@@ -399,10 +399,10 @@ def load_user_config():
         print("[orbital-launcher] Scanlines: on", file=sys.stderr)
 
     # --- inner_radius ---
-    cfg.inner_radius = _parse_float(raw, "inner_radius", 180, 80, 300)
+    cfg.inner_radius = _parse_float(raw, "inner_radius", 35, 20, 200)
 
     # --- outer_radius ---
-    cfg.outer_radius = _parse_float(raw, "outer_radius", 350, 200, 600)
+    cfg.outer_radius = _parse_float(raw, "outer_radius", 400, 200, 600)
 
     # --- drift_rate ---
     cfg.drift_rate = _parse_float(raw, "drift_rate", 3.0, 0, 10)
