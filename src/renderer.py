@@ -57,7 +57,7 @@ class Renderer:
             cy = height / 2
         for icon in self.state.icons:
             # 1. Fixed 3D vertex, scaled by zoom + configured radius
-            r = icon.radius * self.state.zoom
+            r = icon.radius * self.state.zoom * self.state.toggle_progress
             x = icon.base_x * r
             y = icon.base_y * r
             z = icon.base_z * r
@@ -91,7 +91,7 @@ class Renderer:
         front = [i for i in projected if i.zdepth >= 0]
 
         # 1. Draw icons behind the omega
-        if self.state.visible:
+        if self.state.toggle_progress > 0.0:
             for icon in behind:
                 self._draw_icon(cr, icon)
 
@@ -99,13 +99,13 @@ class Renderer:
         self._draw_omega(cr, cx, cy)
 
         # 3. Draw icons in front of the omega
-        if self.state.visible:
+        if self.state.toggle_progress > 0.0:
             for icon in front:
                 self._draw_icon(cr, icon)
 
         # Draw hover label
         if (
-            self.state.visible
+            self.state.toggle_progress > 0.0
             and self.state.hovered_icon is not None
             and not self.state.dragging
         ):
@@ -131,6 +131,9 @@ class Renderer:
 
         if id(icon) in self.state.filtered_icon_ids:
             alpha *= cfg.filtered_alpha
+
+        # Toggle animation — fade with sphere expansion/collapse
+        alpha *= self.state.toggle_progress
 
         # Hover boost
         hover_scale = 1.0

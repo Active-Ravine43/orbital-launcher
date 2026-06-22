@@ -56,6 +56,11 @@ class IconLoader:
 
         size = int(cfg.base_icon_size * cfg.dpi_scale * 2)  # DPI-aware 2x
 
+        # Step 0: Absolute path — used by Steam / non-standard desktop entries.
+        # Keep original colours (no red recolor) for custom artwork.
+        if icon_name.startswith("/") and os.path.exists(icon_name):
+            return self._pixbuf_to_surface_raw(icon_name, size)
+
         # Step 1: GTK IconTheme lookup (GTK4 API)
         paintable = None
         try:
@@ -138,7 +143,19 @@ class IconLoader:
         if "bes-sade-light-red" not in path:
             pb = self._recolor_red(pb)
 
-        # Fast path: encode to PNG in C, decode in C — zero Python pixels
+        return self._pixbuf_render(pb)
+
+    def _pixbuf_to_surface_raw(self, path: str, size: int) -> "cairo.ImageSurface":
+        """Load an image file WITHOUT recolouring — for game artwork
+        and other custom icons that should keep their original colours."""
+        try:
+            pb = GdkPixbuf.Pixbuf.new_from_file_at_size(path, size, size)
+        except Exception:
+            return None
+        return self._pixbuf_render(pb)
+
+    def _pixbuf_render(self, pb: GdkPixbuf.Pixbuf) -> "cairo.ImageSurface":
+        """Encode pixbuf to PNG in C, decode in C — zero Python pixels."""
         try:
             ok, png_bytes = pb.save_to_bufferv("png", [], [])
             if ok:

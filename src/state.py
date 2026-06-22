@@ -24,6 +24,8 @@ class OrbitalState:
         self.hovered_icon: Optional[IconEntry] = None
         self.focused_icon: Optional[IconEntry] = None  # keyboard focus
         self.dragging: bool = False
+        self.toggle_progress: float = 0.0  # 0.0=collapsed, 1.0=expanded — start hidden
+        self.toggle_animating: bool = False  # True during open/close transition
         self.launch_counts: dict[str, int] = {}
 
     def load_state(self):

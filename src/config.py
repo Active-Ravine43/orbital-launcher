@@ -101,6 +101,7 @@ class Cfg:
     # Animation
     fps_active_interval: int = 16      # ms (~60fps) when sphere visible
     fps_idle_interval: int = 1000      # ms (1fps) when sphere hidden
+    toggle_animation_ms: int = 250     # open/close radial animation duration (0 = instant)
 
     # Misc
     scanlines_enabled: bool = False  # toggle CRT scanline effect
@@ -405,6 +406,9 @@ def load_user_config():
     # --- drift_rate ---
     cfg.drift_rate = _parse_float(raw, "drift_rate", 3.0, 0, 10)
 
+    # --- toggle_animation_ms ---
+    cfg.toggle_animation_ms = _parse_int(raw, "toggle_animation_ms", 250, 0, 1000)
+
     # Honour reduced-motion override: if drift was already zeroed by
     # reduced-motion detection, keep it zero regardless of config.
     # (reduced_motion is set later in app.py — this sets the starting point)
@@ -421,6 +425,33 @@ def _parse_float(
     val_str = raw.get(key, str(default))
     try:
         val = float(val_str)
+    except (ValueError, TypeError):
+        print(
+            f"[orbital-launcher] Invalid value for '{key}': {val_str!r} — "
+            f"using default {default}",
+            file=sys.stderr,
+        )
+        return default
+    clamped = max(lo, min(hi, val))
+    if clamped != val:
+        print(
+            f"[orbital-launcher] '{key}' value {val} clamped to {clamped}",
+            file=sys.stderr,
+        )
+    return clamped
+
+
+def _parse_int(
+    raw: dict[str, str],
+    key: str,
+    default: int,
+    lo: int,
+    hi: int,
+) -> int:
+    """Parse an int from *raw*, clamped to [*lo*, *hi*]."""
+    val_str = raw.get(key, str(default))
+    try:
+        val = int(val_str)
     except (ValueError, TypeError):
         print(
             f"[orbital-launcher] Invalid value for '{key}': {val_str!r} — "

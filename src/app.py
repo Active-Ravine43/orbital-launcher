@@ -12,6 +12,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -26,7 +27,7 @@ gi.require_version("Gio", "2.0")
 
 from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, Gio
 
-from .config import cfg, PID_FILE, load_user_config
+from .config import cfg, DESKTOP_DIRS, PID_FILE, load_user_config
 from .icons import IconLoader, IconEntry
 from .lattice import deterministic_params
 from .renderer import Renderer
@@ -277,8 +278,7 @@ class MonitorView:
                     self._apply_search_filter()
                     self.draw_area.queue_draw()
                 else:
-                    self.state.visible = False
-                    self.draw_area.queue_draw()
+                    self.hide()
                 return True
 
             if keyval == Gdk.KEY_BackSpace:
@@ -289,6 +289,12 @@ class MonitorView:
                 return True
 
             name = Gdk.keyval_name(keyval) or ""
+            if keyval == Gdk.KEY_space:
+                self.state.search_query += " "
+                self.state.focused_icon = None
+                self._apply_search_filter()
+                self.draw_area.queue_draw()
+                return True
             if (
                 len(name) == 1
                 and name.isprintable()
@@ -419,17 +425,32 @@ class MonitorView:
         self.state.focused_icon = None
         self.state.hovered_icon = None
         self._apply_search_filter()
+        self.app._refresh_apps_if_stale()
+        if cfg.reduced_motion:
+            self.state.toggle_progress = 1.0
+            self.state.toggle_animating = False
+        else:
+            self.state.toggle_animating = True
         if LAYER_SHELL:
             Gtk4LayerShell.set_layer(self.window, Gtk4LayerShell.Layer.OVERLAY)
         self.window.present()
         self.draw_area.grab_focus()
         self.draw_area.queue_draw()
+        if self.app._update_timer_interval:
+            self.app._update_timer_interval()
 
     def hide(self):
         self.state.visible = False
+        if cfg.reduced_motion:
+            self.state.toggle_progress = 0.0
+            self.state.toggle_animating = False
+        else:
+            self.state.toggle_animating = True
         if LAYER_SHELL:
             Gtk4LayerShell.set_layer(self.window, Gtk4LayerShell.Layer.BOTTOM)
         self.draw_area.queue_draw()
+        if self.app._update_timer_interval:
+            self.app._update_timer_interval()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -620,6 +641,7 @@ class OrbitalLauncherApp(Gtk.Application):
         except Exception:
             pass
 
+        self._last_scan_mtime = time.time()
         entries = desktop_scan()
         theme_name = cfg.icon_theme_name if cfg.icon_theme_name else None
         self.icon_loader = IconLoader(display, theme_name)
@@ -711,6 +733,65 @@ class OrbitalLauncherApp(Gtk.Application):
                     file=sys.stderr,
                 )
 
+    # ── Live refresh ────────────────────────────────────────────────
+
+    _last_scan_mtime: float = 0.0
+
+    def _refresh_apps_if_stale(self):
+        """Rescan desktop files if any directory has changed since last scan.
+        Called on every Super+O toggle so newly installed apps appear
+        without a restart."""
+        try:
+            newest = 0.0
+            for d in DESKTOP_DIRS:
+                if not d.exists():
+                    continue
+                for f in d.glob("*.desktop"):
+                    mtime = f.stat().st_mtime
+                    if mtime > newest:
+                        newest = mtime
+        except Exception:
+            return
+
+        if newest < self._last_scan_mtime:
+            return  # nothing changed
+
+        print("[orbital-launcher] Desktop files changed — refreshing app list",
+              file=sys.stderr)
+
+        entries = desktop_scan(force=True)
+        entries.sort(key=lambda e: hashlib.sha256(e["name"].encode()).hexdigest())
+        total = len(entries)
+
+        icons = []
+        for i, e in enumerate(entries):
+            params = deterministic_params(e["name"], i, total)
+            icon = IconEntry(
+                name=e["name"],
+                icon_name=e["icon_name"],
+                exec_cmd=e["exec"],
+                terminal=e["terminal"],
+                desktop_file=e["desktop_file"],
+                base_x=params["x"],
+                base_y=params["y"],
+                base_z=params["z"],
+                radius=params["radius"],
+                speed=params["speed"],
+                phase=params["phase"],
+                shell=params["shell"],
+                launch_count=self._launch_counts.get(
+                    os.path.basename(e["desktop_file"]), 0
+                ),
+            )
+            icon.surface = self.icon_loader.load(e["icon_name"])
+            icons.append(icon)
+
+        self._icons = icons
+        for v in self.views:
+            v.state.icons = icons
+        self._last_scan_mtime = newest
+        print(f"[orbital-launcher] Refreshed — {total} apps", file=sys.stderr)
+
     # ── App launching ─────────────────────────────────────────────
 
     def _launch_app(self, view: MonitorView, icon: IconEntry):
@@ -735,6 +816,7 @@ class OrbitalLauncherApp(Gtk.Application):
             subprocess.Popen(
                 cmd,
                 start_new_session=True,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -755,26 +837,47 @@ class OrbitalLauncherApp(Gtk.Application):
         idle_interval = cfg.fps_idle_interval
 
         def tick():
-            any_visible = any(v.state.visible for v in self.views)
-            if any_visible:
-                for v in self.views:
-                    if v.state.visible and not v.state.dragging:
-                        v.state.time_elapsed += active_interval / 1000.0
-                    v.draw_area.queue_draw()
-            else:
-                for v in self.views:
-                    v.draw_area.queue_draw()
+            delta = active_interval / max(cfg.toggle_animation_ms, 1)
+            anim_ended = False
+            for v in self.views:
+                # Advance toggle animation
+                if v.state.toggle_animating:
+                    if v.state.visible:
+                        v.state.toggle_progress = min(1.0, v.state.toggle_progress + delta)
+                        if v.state.toggle_progress >= 1.0:
+                            v.state.toggle_animating = False
+                            anim_ended = True
+                    else:
+                        v.state.toggle_progress = max(0.0, v.state.toggle_progress - delta)
+                        if v.state.toggle_progress <= 0.0:
+                            v.state.toggle_animating = False
+                            anim_ended = True
+
+                # Rotational drift
+                if v.state.visible and not v.state.dragging:
+                    v.state.time_elapsed += active_interval / 1000.0
+
+                v.draw_area.queue_draw()
+
+            if anim_ended:
+                update_interval()
+
             return GLib.SOURCE_CONTINUE
 
         def update_interval():
-            any_visible = any(v.state.visible for v in self.views)
-            interval = active_interval if any_visible else idle_interval
+            any_active = any(
+                v.state.visible or v.state.toggle_animating for v in self.views
+            )
+            interval = active_interval if any_active else idle_interval
             if self._timer_id:
                 GLib.source_remove(self._timer_id)
             self._timer_id = GLib.timeout_add(interval, tick)
 
         self._update_timer_interval = update_interval
         self._timer_id = GLib.timeout_add(active_interval, tick)
+        # Immediately adjust to correct interval for current state
+        # (all views start hidden → 1000ms idle)
+        update_interval()
 
     # ── Signals ───────────────────────────────────────────────────
 

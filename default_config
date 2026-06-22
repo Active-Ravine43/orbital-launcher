@@ -42,3 +42,6 @@ outer_radius = 400
 
 # Natural orbit drift speed in degrees/second (0 = no drift, 10 = fast)
 drift_rate = 3.0
+
+# Toggle animation duration in milliseconds (0 = instant)
+toggle_animation_ms = 250

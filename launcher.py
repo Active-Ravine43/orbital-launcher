@@ -13,6 +13,6 @@ _REPO = os.path.dirname(os.path.abspath(__file__))
 if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
 
-from orbital_launcher.app import main
+from src.app import main
 
 sys.exit(main())
