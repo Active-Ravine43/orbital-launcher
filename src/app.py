@@ -12,7 +12,6 @@ import os
 import signal
 import subprocess
 import sys
-import time
 from pathlib import Path
 from typing import Optional
 
@@ -641,7 +640,6 @@ class OrbitalLauncherApp(Gtk.Application):
         except Exception:
             pass
 
-        self._last_scan_mtime = time.time()
         entries = desktop_scan()
         theme_name = cfg.icon_theme_name if cfg.icon_theme_name else None
         self.icon_loader = IconLoader(display, theme_name)
@@ -735,34 +733,29 @@ class OrbitalLauncherApp(Gtk.Application):
 
     # ── Live refresh ────────────────────────────────────────────────
 
-    _last_scan_mtime: float = 0.0
-
     def _refresh_apps_if_stale(self):
-        """Rescan desktop files if any directory has changed since last scan.
-        Called on every Super+O toggle so newly installed apps appear
-        without a restart."""
-        try:
-            newest = 0.0
-            for d in DESKTOP_DIRS:
-                if not d.exists():
-                    continue
-                for f in d.glob("*.desktop"):
-                    mtime = f.stat().st_mtime
-                    if mtime > newest:
-                        newest = mtime
-        except Exception:
-            return
-
-        if newest < self._last_scan_mtime:
-            return  # nothing changed
-
-        print("[orbital-launcher] Desktop files changed — refreshing app list",
-              file=sys.stderr)
-
+        """Rescan desktop files on every toggle so newly installed apps
+        appear without a restart.  Compares by desktop-file path and
+        only rebuilds the icon lattice when the set of apps changed."""
         entries = desktop_scan(force=True)
         entries.sort(key=lambda e: hashlib.sha256(e["name"].encode()).hexdigest())
-        total = len(entries)
 
+        # Fast path — same set of .desktop files, nothing to do
+        old_paths = {icon.desktop_file for icon in self._icons}
+        new_paths = {e["desktop_file"] for e in entries}
+        if old_paths == new_paths:
+            return
+
+        added = new_paths - old_paths
+        removed = old_paths - new_paths
+        if added:
+            print(f"[orbital-launcher] New apps detected: {len(added)}",
+                  file=sys.stderr)
+        if removed:
+            print(f"[orbital-launcher] Apps removed: {len(removed)}",
+                  file=sys.stderr)
+
+        total = len(entries)
         icons = []
         for i, e in enumerate(entries):
             params = deterministic_params(e["name"], i, total)
@@ -789,7 +782,6 @@ class OrbitalLauncherApp(Gtk.Application):
         self._icons = icons
         for v in self.views:
             v.state.icons = icons
-        self._last_scan_mtime = newest
         print(f"[orbital-launcher] Refreshed — {total} apps", file=sys.stderr)
 
     # ── App launching ─────────────────────────────────────────────
