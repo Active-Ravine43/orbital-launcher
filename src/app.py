@@ -805,12 +805,19 @@ class OrbitalLauncherApp(Gtk.Application):
             else:
                 cmd = ["sh", "-c", icon.exec_cmd]
 
+            # Strip LD_PRELOAD so the GTK4 layer-shell lib injected by
+            # the launcher's own wrapper script doesn't leak into
+            # launched apps (breaks Firefox, Steam, Steam games, etc.)
+            child_env = dict(os.environ)
+            child_env.pop("LD_PRELOAD", None)
+
             subprocess.Popen(
                 cmd,
                 start_new_session=True,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=child_env,
             )
             print(f"[orbital-launcher] Launched: {icon.name}", file=sys.stderr)
         except Exception as e:
